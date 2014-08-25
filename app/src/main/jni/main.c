@@ -75,7 +75,7 @@ static SLMuteSoloItf fdPlayerMuteSolo;
 static SLVolumeItf fdPlayerVolume;
 
 // synthesized sawtooth clip
-#define SAWTOOTH_FRAMES 8000
+#define SAWTOOTH_FRAMES 1000
 static short sawtoothBuffer[SAWTOOTH_FRAMES];
 
 // pointer and size of the next player buffer to enqueue, and number of remaining buffers
@@ -85,15 +85,11 @@ static unsigned nextSize;
 // this callback handler is called every time a buffer finishes playing
 void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 {
-    LOGI("bqPlayerCallback(...)");
     assert(bq == bqPlayerBufferQueue);
     assert(NULL == context);
 
-    LOGI("YO: %d - %d", NULL != nextBuffer, nextSize);
-
     // for streaming playback, replace this test by logic to find and fill the next buffer
     if (NULL != nextBuffer && 0 != nextSize) {
-        LOGI("NULL != nextBuffer && 0 != nextSize)");
 
         SLresult result;
         // enqueue another buffer
@@ -301,13 +297,17 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
     }
 }
 
-// synthesize a mono sawtooth wave and place it into a buffer (called automatically on load)
-void synthesizeSawtooth(void)
+// synthesize a mono sawtooth wave and place it into a buffer
+void synthesizeSawtooth(int k)
 {
-    LOGI("synthesizeSawtooth(void)");
+    // some lame way to prevent division by 0
+    if (k == 0) {
+        k = 1;
+    }
+    // LOGI("k = %d", k);
     unsigned i;
     for (i = 0; i < SAWTOOTH_FRAMES; ++i) {
-        sawtoothBuffer[i] = 32768 - ((i % 100) * 660);
+        sawtoothBuffer[i] = 32768 - ((i % abs(k)) * 660);
     }
 }
 
@@ -527,7 +527,7 @@ void android_main(struct android_app* state) {
         engine.state = *(struct saved_state*)state->savedState;
     }
 
-    synthesizeSawtooth();
+    synthesizeSawtooth(100);
     createSLEngine();
     createBufferQueueAudioPlayer();
     selectClip();
@@ -555,13 +555,18 @@ void android_main(struct android_app* state) {
             if (ident == LOOPER_ID_USER) {
                 if (engine.accelerometerSensor != NULL) {
                     ASensorEvent event;
+                    int counter = 0;
+                    int k = 10;
+                    int z = 10;
                     while (ASensorEventQueue_getEvents(engine.sensorEventQueue,
                             &event, 1) > 0) {
-                            /*
-                        LOGI("accelerometer: x=%f y=%f z=%f",
-                                event.acceleration.x, event.acceleration.y,
-                                event.acceleration.z);
-                                */
+
+                        if((counter % 5) == 0) {
+                            synthesizeSawtooth(event.acceleration.z * 10);
+
+                            // LOGI("z = %f", event.acceleration.z);
+                        }
+                        counter++;
                     }
                 }
             }
