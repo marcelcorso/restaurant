@@ -30,6 +30,8 @@ proguard/
 #Log Files
 *.log
 
-
 .idea
 pause.iml
+
+app/src/main/libs
+app/src/main/obj
